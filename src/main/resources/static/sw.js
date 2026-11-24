@@ -1,5 +1,5 @@
-const CACHE_NAME = 'budgetplaner-v3';
-const ASSETS = ['/', '/index.html', '/css/style.css', '/js/app.js', '/js/chart.umd.min.js', '/manifest.json'];
+const CACHE_NAME = 'budgetplaner-v4';
+const ASSETS = ['/', '/index.html', '/css/style.css', '/js/app.js', '/js/chart.umd.min.js', '/js/zxing.min.js', '/manifest.json'];
 
 self.addEventListener('install', e => {
   self.skipWaiting();

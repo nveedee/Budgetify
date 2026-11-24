@@ -238,44 +238,59 @@ async function renderBudgets() {
   }
 }
 
-// ===== SCANNER =====
-async function startScanner() {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-    state.scannerStream = stream;
-    const video = document.getElementById('scanner-video');
-    video.style.display = 'block';
-    video.srcObject = stream;
-    document.getElementById('scanner-hint').textContent = 'Barcode in den Rahmen halten';
+// ===== SCANNER (ZXing — läuft in allen Browsern, inkl. iPhone über HTTPS) =====
+let zxingReader = null;
 
-    // BarcodeDetector API (falls verfügbar)
-    if ('BarcodeDetector' in window) {
-      const detector = new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'code_128', 'qr_code'] });
-      const scan = setInterval(async () => {
-        try {
-          const barcodes = await detector.detect(video);
-          if (barcodes.length > 0) {
-            clearInterval(scan);
-            stopScanner();
-            await verarbeiteBarcode(barcodes[0].rawValue);
-          }
-        } catch {}
-      }, 300);
-    } else {
-      document.getElementById('scanner-hint').textContent = 'BarcodeDetector nicht unterstützt — manuell eingeben';
-    }
+async function startScanner() {
+  const hint = document.getElementById('scanner-hint');
+  const video = document.getElementById('scanner-video');
+
+  if (typeof ZXing === 'undefined') {
+    hint.textContent = 'Scanner-Bibliothek nicht geladen';
+    return;
+  }
+  // Kamera braucht einen sicheren Kontext (HTTPS oder localhost)
+  if (!window.isSecureContext) {
+    hint.textContent = 'Kamera nur über HTTPS — bitte "Manuell" nutzen';
+    showToast('Kamera-Scan braucht HTTPS (am Handy: Railway-URL)', true);
+    return;
+  }
+
+  try {
+    hint.textContent = 'Kamera wird gestartet…';
+    zxingReader = new ZXing.BrowserMultiFormatReader();
+    video.style.display = 'block';
+
+    // Rückkamera bevorzugen
+    const constraints = { video: { facingMode: 'environment' } };
+    await zxingReader.decodeFromConstraints(constraints, video, (result, err) => {
+      if (result) {
+        const code = result.getText();
+        stopScanner();
+        verarbeiteBarcode(code);
+      }
+      // err pro Frame ohne Treffer ist normal -> ignorieren
+    });
+    hint.textContent = 'Barcode in den Rahmen halten';
   } catch (e) {
-    showToast('Kamera-Zugriff verweigert', true);
+    hint.textContent = 'Kamera-Zugriff nicht möglich — "Manuell" nutzen';
+    showToast('Kamera-Zugriff verweigert oder nicht verfügbar', true);
   }
 }
 
 function stopScanner() {
+  if (zxingReader) {
+    try { zxingReader.reset(); } catch {}
+    zxingReader = null;
+  }
   if (state.scannerStream) {
     state.scannerStream.getTracks().forEach(t => t.stop());
     state.scannerStream = null;
   }
-  document.getElementById('scanner-video').style.display = 'none';
-  document.getElementById('scanner-hint').textContent = 'Kamera starten';
+  const video = document.getElementById('scanner-video');
+  if (video) video.style.display = 'none';
+  const hint = document.getElementById('scanner-hint');
+  if (hint) hint.textContent = 'Kamera starten';
 }
 
 async function verarbeiteBarcode(barcode) {
