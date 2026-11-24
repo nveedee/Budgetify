@@ -1,0 +1,7 @@
+target/
+data/
+*.db
+.env
+application-local.properties
+.idea/
+*.iml
