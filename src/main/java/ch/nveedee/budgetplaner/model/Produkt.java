@@ -20,6 +20,7 @@ public class Produkt {
     private String kategorie;
     private LocalDate hinzugefuegtAm;
     private String notiz;
-    private String bildUrl; // optional, aus Gemini-Suche
+    private String bildUrl; // optional, aus Gemini-/OpenFoodFacts-Suche
+    private String gekauftBei; // z.B. "Migros", "Coop" (optional)
     private int kaufCount = 0; // wie oft "quick-bought"
 }

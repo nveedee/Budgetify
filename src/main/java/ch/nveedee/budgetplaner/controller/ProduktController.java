@@ -9,8 +9,11 @@ import ch.nveedee.budgetplaner.repository.KontoRepository;
 import ch.nveedee.budgetplaner.repository.ProduktRepository;
 import ch.nveedee.budgetplaner.repository.TransaktionRepository;
 import ch.nveedee.budgetplaner.service.GeminiService;
+import ch.nveedee.budgetplaner.service.OpenFoodFactsService;
 import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -26,15 +29,17 @@ public class ProduktController {
     private final KontoRepository kontoRepo;
     private final TransaktionRepository transaktionRepo;
     private final BudgetRepository budgetRepo;
+    private final OpenFoodFactsService openFoodFactsService;
 
     public ProduktController(ProduktRepository repo, GeminiService geminiService,
                              KontoRepository kontoRepo, TransaktionRepository transaktionRepo,
-                             BudgetRepository budgetRepo) {
+                             BudgetRepository budgetRepo, OpenFoodFactsService openFoodFactsService) {
         this.repo = repo;
         this.geminiService = geminiService;
         this.kontoRepo = kontoRepo;
         this.transaktionRepo = transaktionRepo;
         this.budgetRepo = budgetRepo;
+        this.openFoodFactsService = openFoodFactsService;
     }
 
     @GetMapping
@@ -45,32 +50,57 @@ public class ProduktController {
     @GetMapping("/scan/{barcode}")
     public Map<String, Object> scanBarcode(@PathVariable String barcode) {
         Map<String, Object> result = new HashMap<>();
+        result.put("barcode", barcode);
 
-        // Erst lokal suchen
+        // 1. Lokale DB
         var lokal = repo.findByBarcode(barcode);
         if (lokal.isPresent()) {
+            Produkt p = lokal.get();
             result.put("gefunden", true);
-            result.put("quelle", "lokal");
-            result.put("produkt", lokal.get());
+            result.put("source", "lokal");
+            result.put("name", p.getName());
+            result.put("preis", p.getPreis());
+            result.put("kategorie", p.getKategorie());
+            result.put("bildUrl", p.getBildUrl());
+            result.put("gekauftBei", p.getGekauftBei());
             return result;
         }
 
-        // Dann Gemini fragen
-        var geminiInfo = geminiService.sucheProduktInfo(barcode);
-        if (geminiInfo != null) {
+        // 2. Open Food Facts
+        var off = openFoodFactsService.lookup(barcode);
+        if (off.isPresent()) {
+            var p = off.get();
             result.put("gefunden", true);
-            result.put("quelle", "gemini");
-            result.put("vorschlag", Map.of(
-                "name", geminiInfo.name != null ? geminiInfo.name : "",
-                "preis", geminiInfo.preis != null ? geminiInfo.preis : 0.0,
-                "kategorie", geminiInfo.kategorie != null ? geminiInfo.kategorie : "",
-                "barcode", barcode
-            ));
-        } else {
-            result.put("gefunden", false);
-            result.put("barcode", barcode);
+            result.put("source", "openfoodfacts");
+            result.put("name", p.name);
+            result.put("kategorie", p.kategorie);
+            result.put("bildUrl", p.bildUrl);
+
+            // 3. Preis via Gemini schätzen
+            BigDecimal preis = null;
+            if (p.name != null && !p.name.isBlank()) {
+                preis = parsePreis(geminiService.fetchPreisForProdukt(p.name));
+            }
+            result.put("preis", preis);
+            return result;
         }
+
+        // Nicht gefunden -> Frontend öffnet Modal zur manuellen Eingabe
+        result.put("gefunden", false);
         return result;
+    }
+
+    // Extrahiert die erste Zahl (z.B. "ca. 2.90 CHF" -> 2.90) als BigDecimal
+    private BigDecimal parsePreis(String text) {
+        if (text == null) return null;
+        Matcher m = Pattern.compile("(\\d+(?:[.,]\\d+)?)").matcher(text);
+        if (m.find()) {
+            try {
+                return new BigDecimal(m.group(1).replace(",", "."));
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        return null;
     }
 
     @PostMapping

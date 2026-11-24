@@ -16,7 +16,7 @@ public class GeminiService {
     private final RestTemplate restTemplate = new RestTemplate();
 
     private static final String GEMINI_URL =
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=";
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=";
 
     public GeminiProduktInfo sucheProduktInfo(String barcode) {
         String prompt = String.format(
@@ -54,6 +54,45 @@ public class GeminiService {
             }
         } catch (Exception e) {
             System.err.println("Gemini API Fehler: " + e.getMessage());
+        }
+        return null;
+    }
+
+    /**
+     * Fragt Gemini nach dem typischen CH-Preis eines Produkts (Antwort als reiner Text/Zahl).
+     */
+    public String fetchPreisForProdukt(String produktName) {
+        String prompt = String.format(
+            "Was kostet '%s' typischerweise in der Schweiz bei Detailhändlern wie Migros oder Coop? " +
+            "Antworte nur mit einer Zahl in CHF, z.B. 3.50", produktName);
+
+        Map<String, Object> body = Map.of(
+            "contents", List.of(Map.of(
+                "parts", List.of(Map.of("text", prompt))
+            ))
+        );
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+
+        try {
+            ResponseEntity<Map> response = restTemplate.postForEntity(
+                GEMINI_URL + apiKey, request, Map.class);
+
+            if (response.getBody() != null) {
+                List candidates = (List) response.getBody().get("candidates");
+                if (candidates != null && !candidates.isEmpty()) {
+                    Map candidate = (Map) candidates.get(0);
+                    Map content = (Map) candidate.get("content");
+                    List parts = (List) content.get("parts");
+                    Map part = (Map) parts.get(0);
+                    String text = (String) part.get("text");
+                    return text != null ? text.trim() : null;
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Gemini Preis-Fehler: " + e.getMessage());
         }
         return null;
     }

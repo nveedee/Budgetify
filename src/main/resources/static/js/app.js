@@ -279,68 +279,45 @@ function stopScanner() {
 
 async function verarbeiteBarcode(barcode) {
   document.getElementById('scanner-hint').textContent = `Suche "${barcode}"...`;
-  document.getElementById('gemini-result-box').style.display = 'none';
-
+  const box = document.getElementById('gemini-result-box');
+  if (box) box.style.display = 'none';
   try {
     const result = await fetch(`${API}/produkte/scan/${barcode}`).then(r => r.json());
-    const box = document.getElementById('gemini-result-box');
-
-    if (result.gefunden && result.quelle === 'lokal') {
-      const p = result.produkt;
-      box.innerHTML = `
-        <div class="card">
-          <div class="card-row">
-            <span style="color:var(--green);font-weight:600">Bereits im Inventar</span>
-          </div>
-          <div style="margin-top:8px">
-            <strong>${p.name}</strong><br>
-            <span style="color:var(--text2)">CHF ${p.preis}</span>
-          </div>
-        </div>`;
-      box.style.display = 'block';
-    } else if (result.gefunden && result.quelle === 'gemini') {
-      const v = result.vorschlag;
-      box.innerHTML = `
-        <div class="gemini-result">
-          <div class="gemini-badge">AI Vorschlag</div>
-          <div style="font-size:18px;font-weight:700;margin-bottom:4px">${v.name}</div>
-          <div style="color:var(--text2);margin-bottom:12px">
-            CHF ${v.preis?.toFixed(2) || '?'} · ${v.kategorie || 'Unbekannt'}
-          </div>
-          <div style="display:flex;gap:8px">
-            <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="akzeptiereVorschlag(${JSON.stringify(v).replace(/"/g, '&quot;')})">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              Übernehmen
-            </button>
-            <button class="btn btn-secondary" style="flex:1;justify-content:center" onclick="manuellEingeben('${barcode}')">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
-              Ändern
-            </button>
-          </div>
-        </div>`;
-      box.style.display = 'block';
-    } else {
-      manuellEingeben(barcode);
-    }
+    zeigeProduktModal(result, barcode);
   } catch (e) {
-    showToast('Fehler beim Suchen', true);
+    showToast('Produktsuche fehlgeschlagen — bitte manuell eingeben', true);
+    zeigeProduktModal({}, barcode);
+  } finally {
+    document.getElementById('scanner-hint').textContent = 'Kamera starten';
   }
 }
 
-function akzeptiereVorschlag(vorschlag) {
-  document.getElementById('p-name').value = vorschlag.name;
-  document.getElementById('p-preis').value = vorschlag.preis || '';
-  document.getElementById('p-kategorie').value = vorschlag.kategorie || '';
-  document.getElementById('p-barcode').value = vorschlag.barcode || '';
+// Öffnet das Produkt-Modal, vorausgefüllt mit den Scan-Daten (Name/Preis/Kategorie/Bild)
+function zeigeProduktModal(data = {}, barcode = '') {
+  document.getElementById('p-name').value = data.name || '';
+  document.getElementById('p-preis').value =
+    (data.preis != null && data.preis !== '') ? Number(data.preis).toFixed(2) : '';
+  document.getElementById('p-kategorie').value = data.kategorie || '';
+  document.getElementById('p-barcode').value = data.barcode || barcode || '';
+
+  const sel = document.getElementById('p-gekauftBei');
+  if (sel) sel.value = data.gekauftBei || 'Migros';
+
+  const bild = document.getElementById('p-bild');
+  if (bild) {
+    if (data.bildUrl) {
+      bild.innerHTML = `<img src="${data.bildUrl}" alt="${data.name || ''}">`;
+      bild.style.display = 'block';
+    } else {
+      bild.innerHTML = '';
+      bild.style.display = 'none';
+    }
+  }
   openModal('modal-produkt');
 }
 
 function manuellEingeben(barcode = '') {
-  document.getElementById('p-name').value = '';
-  document.getElementById('p-preis').value = '';
-  document.getElementById('p-kategorie').value = '';
-  document.getElementById('p-barcode').value = barcode;
-  openModal('modal-produkt');
+  zeigeProduktModal({}, barcode);
 }
 
 function renderInventar() {
@@ -370,7 +347,7 @@ function renderInventar() {
       <div class="produkt-card">
         <div class="produkt-info">
           <div class="produkt-name">${p.name}</div>
-          <div class="produkt-meta">${formatCHF(p.preis)} · ${p.kategorie || 'Keine Kategorie'}</div>
+          <div class="produkt-meta">${formatCHF(p.preis)} · ${p.kategorie || 'Keine Kategorie'}${p.gekauftBei ? ' · ' + p.gekauftBei : ''}</div>
           <span class="produkt-badge" data-kauf-badge="${p.id}">× ${p.kaufCount || 0} mal gekauft</span>
         </div>
         <button class="btn-kaufen" onclick="kaufeProdukt(${p.id}, this)">Kaufen</button>
@@ -651,7 +628,8 @@ async function speichereProdukt() {
     name: document.getElementById('p-name').value,
     preis: parseFloat(document.getElementById('p-preis').value) || 0,
     kategorie: document.getElementById('p-kategorie').value,
-    barcode: document.getElementById('p-barcode').value
+    barcode: document.getElementById('p-barcode').value,
+    gekauftBei: document.getElementById('p-gekauftBei') ? document.getElementById('p-gekauftBei').value : null
   };
   if (!payload.name) return showToast('Name erforderlich', true);
   await fetch(`${API}/produkte`, {

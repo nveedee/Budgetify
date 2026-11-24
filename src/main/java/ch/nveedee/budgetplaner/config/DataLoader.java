@@ -130,6 +130,7 @@ public class DataLoader implements CommandLineRunner {
         p.setKategorie(kategorie);
         p.setBarcode(barcode);
         p.setKaufCount(kaufCount);
+        p.setGekauftBei("Migros");
         p.setHinzugefuegtAm(LocalDate.now());
         return produktRepo.save(p);
     }

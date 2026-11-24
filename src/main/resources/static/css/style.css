@@ -701,3 +701,14 @@ h1 {
   color: var(--text2);
   font-weight: 600;
 }
+
+/* ===== PRODUCT IMAGE (scan modal) ===== */
+.produkt-bild { text-align: center; margin-bottom: 14px; }
+.produkt-bild img {
+  max-height: 130px;
+  max-width: 100%;
+  border-radius: 12px;
+  object-fit: contain;
+  background: var(--surface2);
+  padding: 6px;
+}
