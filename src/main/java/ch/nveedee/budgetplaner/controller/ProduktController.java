@@ -8,12 +8,9 @@ import ch.nveedee.budgetplaner.repository.BudgetRepository;
 import ch.nveedee.budgetplaner.repository.KontoRepository;
 import ch.nveedee.budgetplaner.repository.ProduktRepository;
 import ch.nveedee.budgetplaner.repository.TransaktionRepository;
-import ch.nveedee.budgetplaner.service.GeminiService;
 import ch.nveedee.budgetplaner.service.OpenFoodFactsService;
 import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -25,17 +22,15 @@ import java.util.HashMap;
 public class ProduktController {
 
     private final ProduktRepository repo;
-    private final GeminiService geminiService;
     private final KontoRepository kontoRepo;
     private final TransaktionRepository transaktionRepo;
     private final BudgetRepository budgetRepo;
     private final OpenFoodFactsService openFoodFactsService;
 
-    public ProduktController(ProduktRepository repo, GeminiService geminiService,
+    public ProduktController(ProduktRepository repo,
                              KontoRepository kontoRepo, TransaktionRepository transaktionRepo,
                              BudgetRepository budgetRepo, OpenFoodFactsService openFoodFactsService) {
         this.repo = repo;
-        this.geminiService = geminiService;
         this.kontoRepo = kontoRepo;
         this.transaktionRepo = transaktionRepo;
         this.budgetRepo = budgetRepo;
@@ -75,32 +70,14 @@ public class ProduktController {
             result.put("name", p.name);
             result.put("kategorie", p.kategorie);
             result.put("bildUrl", p.bildUrl);
-
-            // 3. Preis via Gemini schätzen
-            BigDecimal preis = null;
-            if (p.name != null && !p.name.isBlank()) {
-                preis = parsePreis(geminiService.fetchPreisForProdukt(p.name));
-            }
-            result.put("preis", preis);
+            // Preis wird im Modal manuell eingegeben
+            result.put("preis", null);
             return result;
         }
 
         // Nicht gefunden -> Frontend öffnet Modal zur manuellen Eingabe
         result.put("gefunden", false);
         return result;
-    }
-
-    // Extrahiert die erste Zahl (z.B. "ca. 2.90 CHF" -> 2.90) als BigDecimal
-    private BigDecimal parsePreis(String text) {
-        if (text == null) return null;
-        Matcher m = Pattern.compile("(\\d+(?:[.,]\\d+)?)").matcher(text);
-        if (m.find()) {
-            try {
-                return new BigDecimal(m.group(1).replace(",", "."));
-            } catch (NumberFormatException ignored) {
-            }
-        }
-        return null;
     }
 
     @PostMapping

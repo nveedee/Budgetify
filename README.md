@@ -9,14 +9,8 @@ Persönlicher Budget Planer von Nveedee.
 3. **Lokales Profil aktivieren** (nutzt H2): in der Run-Config von
    `BudgetplanerApplication` unter *Active profiles* `local` eintragen
    (oder VM-Option `-Dspring.profiles.active=local`).
-4. **Gemini API Key** eintragen in `src/main/resources/application-local.properties`:
-   ```
-   gemini.api.key=DEIN_KEY_HIER
-   ```
-   → Key holen: https://aistudio.google.com/app/apikey
-   (Diese Datei ist in `.gitignore` und wird nicht committet.)
-5. **Starten**: `BudgetplanerApplication.java` → Run (grüner Pfeil)
-6. **Browser**: http://localhost:8080
+4. **Starten**: `BudgetplanerApplication.java` → Run (grüner Pfeil)
+5. **Browser**: http://localhost:8080
 
 ## Features
 
@@ -24,7 +18,7 @@ Persönlicher Budget Planer von Nveedee.
 - 📈 Transaktionen (Lohn, Twint-Eingänge, Ausgaben)
 - 🔄 Daueraufträge (Spotify, Miete etc.)
 - 📊 Budgets mit Monats-Tracking und Fortschrittsbalken
-- 📦 Produktscanner mit Gemini AI Preis-Suche
+- 📦 Produktscanner (Barcode via ZXing + Open Food Facts), Preis manuell
 - 📱 PWA — installierbar auf dem Handy
 
 ## Datenbank
@@ -44,12 +38,8 @@ Die Produktions-Config (`application.properties`) nutzt PostgreSQL über Umgebun
      ⚠️ Railways automatische `DATABASE_URL` ist `postgresql://…` — Spring braucht aber
      das `jdbc:`-Präfix, deshalb oben selbst zusammensetzen (oder die Variable überschreiben).
      Benutzer/Passwort sind in dieser URL enthalten; alternativ separat setzen.
-   - `GEMINI_API_KEY` → dein Gemini-Key.
 3. `PORT` setzt Railway automatisch; die App bindet via `server.port=${PORT:8080}`.
 4. Deploy: Railway baut mit Maven und startet das Jar (kein Profil → PostgreSQL-Config greift).
-
-> Der Gemini-Key liegt lokal nur in `application-local.properties` (git-ignoriert).
-> Da der Key zuvor im Repo-Verlauf stand, sollte er bei Veröffentlichung rotiert werden.
 
 ## PWA auf Handy installieren
 
