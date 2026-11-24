@@ -1,4 +1,5 @@
-const API = 'http://localhost:8080/api';
+// Relativ, damit es auf localhost UND über die PC-IP vom Handy funktioniert
+const API = '/api';
 
 let state = {
   konten: [],
